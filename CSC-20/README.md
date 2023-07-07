@@ -1,7 +1,5 @@
-CSC 20: Programming Concepts and Methodology II
+# CSC 20: Programming Concepts and Methodology II
 
-
-Final Project Specifications:
 
 Make a Movie Database program
 
@@ -17,16 +15,17 @@ Steps:
 
 Read the assignment specifications below and do everything mentioned if you wish to receive full credit. I will deduct points for parts that are not 
 implemented (or not done correctly.) Your program must run without errors or warnings for full credit.
-Final Project Specifications
 
-Background
+## Final Project Specifications
+
+### Background
 
 You are tasked by your Project lead to create a console-based Movie Database Management System. This application must be able to handle creating new 
 entries in a proprietary database as well as returning searches for items in the current database.
 
 ! Use the filename “db.txt” as your database file to save to and load in upon program start!
 
-You MUST implement the following for full credit:
+### You MUST implement the following for full credit:
 
 Start the program by displaying the title of your program (you come up with a name)
 Have a primary prompt that allows you to enter commands
@@ -112,18 +111,18 @@ After entry, return to the main command state...
 After entry, return to the main command state.
             For “quit” → This simply exits the program (close out any open I / O streams prior to exit!)
 
-Other Requirements:
+## Other Requirements:
 
 You must make this object-oriented. You need to have a MINIMUM of four (4) different classes interacting with the main method. The minimum classes are:
 
-            File I/O class (for saving / loading the database) You can make these two classes; one for read / one for write if you want.
-            Keyboard input class (handles declaring Scanner object, retrieving text input, closing object)
-            Class representing a single entry. Use this to easily pass entry information around as a parameter. This class must contain private fields for:
-            title, actor1, actor2, year, runtime, director
-            Also, use get methods (public) to retrieve data from fields
-            Have a class that extends the functionality of the single-entry class and holds the whole current database as a class object. (Hint: You can use an ArrayList behind-the-scenes to do this.)
-            Create get method that can lookup single entry based on certain criteria (index number, search by criteria, etc.) You can overload your get method if you wish.
-            You MUST save every entry added to the database to file. This entry must be able to be restored later.
+- File I/O class (for saving / loading the database) You can make these two classes; one for read / one for write if you want.
+- Keyboard input class (handles declaring Scanner object, retrieving text input, closing object)
+- Class representing a single entry. Use this to easily pass entry information around as a parameter. This class must contain private fields for:
+  title, actor1, actor2, year, runtime, director
+- Also, use get methods (public) to retrieve data from fields
+- Have a class that extends the functionality of the single-entry class and holds the whole current database as a class object. (Hint: You can use an ArrayList behind-the-scenes to do this.)
+- Create get method that can lookup single entry based on certain criteria (index number, search by criteria, etc.) You can overload your get method if you wish.
+- You MUST save every entry added to the database to file. This entry must be able to be restored later.
 
 You MUST check that a new entry is valid before adding it to memory (and the database.) To be valid, the entry must have at least a title (minimum length of valid title is three characters.) 
 All other fields can be empty as needed.
@@ -132,7 +131,7 @@ The program MUST not have errors, warnings, or runtime errors (bugs) to receive 
 
 You MUST create at least fifty (50) valid entries for your database and submit this file as part of your .zip file deliverable. (You can research movie data at the Internet Movie Database at imdb.com)
 
-Extra Credit Opportunity!
+### Extra Credit Opportunity!
 
 Receive 20 points of extra credit if you also add an option to “delete entry.” This must follow the following to get the credit:
 
