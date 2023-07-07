@@ -1,0 +1,6 @@
+jiji1*Jiji: 'Hey there! Nice to see your friendly face!'
+jiji2*Jiji: 'It seems we're stuck here. Is there no way out?'
+momo1*Momo: 'I haven't seen you around here before. You must be new!'
+momo2*Momo: 'I'm Momo, your friendly neighborhood duck :)'
+gio1*Gio: 'Shiny rock >.<'
+gio2*Gio: 'Smaller shiny rock 0.0'
