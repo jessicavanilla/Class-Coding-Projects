@@ -35,11 +35,22 @@ Entity-Relationship (ER) model; relational model; relational database design by 
 
 ### CSC 138: Computer Network Fundamentals
 #### Course Description
-Overview, structure, models, concepts, principles and protocols of computer networking. Network architecture, ISO/OSI reference model, TCP/IP protocol stack, layering. Protocol, encapsulation, socket. HTTP, FTP, SMTP, DNS, P2P, TCP, UDP. Multiplexing and demultiplexing, reliable data transfer, flow control, congestion control. Internet addressing, routing, forwarding, IP, ICMP. Error detection and correction, multiple access problem, LAN vs WAN, Ethernet, ARP, switching. Wireless standards. Network security, threats and attacks, defense and countermeasures.
+Overview, structure, models, concepts, principles, and protocols of computer networking. Network architecture, ISO/OSI reference model, TCP/IP protocol stack, layering. Protocol, encapsulation, socket. HTTP, FTP, SMTP, DNS, P2P, TCP, UDP. Multiplexing and demultiplexing, reliable data transfer, flow control, congestion control. Internet addressing, routing, forwarding, IP, ICMP. Error detection and correction, multiple access problem, LAN vs WAN, Ethernet, ARP, switching. Wireless standards. Network security, threats and attacks, defense and countermeasures.
 #### Technologies
 - Python
 - Visual Studio Code
 - Wireshark
+
+### CSC 153: Computer Forensics
+#### Course Description
+Fundamentals of computer forensics, cyber-crime scene analysis, and electronic discovery. Technical and formal methodology for conducting security incident investigations; file systems and storage analysis, data hiding techniques, network forensics; projects involving using, understanding, and designing digital forensics tools; anti-forensics; legal issues and standards.
+#### Technologies
+- Autopsy
+- Winhex, Hex Workshop
+- FTK Imager
+- OS Forensics
+- Ubuntu
+- Windows VM
 
 ### STAT 128: Statistical Computing
 #### Course Description
