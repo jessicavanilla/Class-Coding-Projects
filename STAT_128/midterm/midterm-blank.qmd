@@ -1,0 +1,191 @@
+---
+title: "midterm"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+Each of the five sections below are worth between 5 and 7 pts, for a total of 31 points possible on the exam.
+
+### 1 read and clean *(7 pts)*
+
+1.1 *(2 pts)* Read in the data, and rename any columns you wish.
+
+```{r}
+library(tidyverse)
+library(scales)
+foodSales <- read_csv("/Users/Jessica/Downloads/STAT_128/midterm/foodsales.csv") |>
+  rename(unit_sales = "Unit sales")
+```
+
+1.2 *(1 pt)* Inspect the rows where State has `NA` values.
+
+```{r}
+na <- foodSales |>
+  filter(is.na(State))
+na
+```
+
+1.3 *(2 pts)* Remove those rows where State has `NA` values.
+
+```{r}
+foodSales <- setdiff(foodSales, na)
+# sanity check
+foodSales |>
+  filter(is.na(State))
+```
+
+1.4 *(2 pts)* Convert `Date` into an actual date and Dollars into numeric units.
+
+*Hint: recall the functions `ymd` and `parse_number` from the homework.*
+
+```{r}
+# could also use Date = as.Date(Date) to convert the column type
+foodSales <- foodSales |>
+  mutate(Date = ymd(Date), Dollars = as.numeric(parse_number(Dollars)))
+foodSales
+```
+
+### 2 get familiar *(6 pts)*
+
+2.1 *(1 pt)* How many rows and columns are in this data set?
+
+```{r}
+dim(foodSales)
+```
+
+There are 88,924 rows and 5 columns in the data set.
+
+2.2 *(2 pts)* What does an observation in this particular data set represent?
+
+An observation represents the amount (in Dollars and in quantity) of sales in a category of food for a state by week.
+
+2.3 *(1 pt)* What period of time does this data set cover?
+
+```{r}
+range(foodSales$Date)
+```
+
+The data set covers the time period from October 6th, 2019 until May 7th, 2023.
+
+2.4 *(2 pts)* How many records are there for each value of `Category`? Does the data appear to be complete?
+
+```{r}
+foodSales |>
+  group_by(Category) |>
+  summarize(count = n())
+
+# finding number of states included
+foodSales |>
+  group_by(State) |>
+  summarize()
+
+```
+
+There are 8084 records for each value of `Category` . By this metric, the data does seem to be complete. If we verify this information, there are 187 weeks between the range of dates that the data set covers. Additionally, only 43 states are included in the data. 187 \* 43 equates to 8041. There seems to be an additional 43 records for each category of food item. This may be related to the number of states included as well, since the quantity is the same.
+
+### 3 plots *(7 pts)*
+
+3.1 *(2 pts)* Which State spends the most money on Vegetables?
+
+```{r}
+foodSales |>
+  filter(Category == "Vegetables") |>
+  group_by(State) |>
+  summarize(avg = mean(Dollars)) |>
+  ggplot(aes(x = avg, y = State)) +
+  geom_col() +
+  scale_x_continuous(labels = label_number(
+    scale = 1e-6, suffix = "M", accuracy = 1))
+```
+
+On average, California spends the most on Vegetables, followed by Florida and Texas. The difference between California and Florida is \$23,985,340.
+
+3.2 *(3 pts)* Plot the spending in California each week on fruits and vegetables, with separate lines for fruits and for vegetables.
+
+```{r}
+fruits <- foodSales |>
+  filter(Category == "Fruits" & State == "California")
+
+vegetables <- foodSales |>
+  filter(Category == "Vegetables" & State == "California")
+
+ggplot(fruits, aes(x = Date, y = Dollars)) +
+  geom_line(color = "red") +
+  scale_y_continuous(labels = label_number(
+    scale = 1e-6, prefix = "$", suffix = "M", accuracy = 1)) +
+  geom_line(data = vegetables, aes(x = Date, y = Dollars), color = "green") +
+  labs(subtitle = "Vegetable spending in green and fruit spending in red per week in California")
+```
+
+3.3 *(2 pts)* Explain and comment on the above plot. What happened during the COVID-19 pandemic in early 2020? What pattern do you see in the fruit and vegetable purchasing patterns of Californians throughout the summer and winter?
+
+In the plot, we can see a huge spike in buying both fruits and vegetables when the COVID-19 become known as a global pandemic. This indicates panic buying among consumers in California during this time. Additionally, we see that during the winter, less fruits are being bought probably due to them being out of season and not as delicious. Vegetables, however, seem to be bought more during the end of the year. This could be due to Californians preparing for seasonal/holiday festivities with large groups of people.
+
+### 4 model *(5 pts)*
+
+4.1 *(2 pts)* Fit the following sinusoidal model for weekly spending on fruits in California and show the fitted coefficients.
+
+$$
+y = a + b \sin(dt) + c \cos(dt)
+$$
+
+where
+
+-   $y$ represents weekly spending
+-   $t$ represents the day of the year (hint: use `yday()`)
+-   $d = \frac{2\pi}{365}$
+-   $a, b, c$ are fitted coefficients.
+
+```{r}
+mul <- 2*pi/365
+
+model <- lm(Dollars ~ sin(mul * yday(Date)) + cos(mul * yday(Date)), fruits)
+fruits$predictions <- predict(model, fruits)
+
+coef(model)
+```
+
+4.2 *(1 pts)* What's the purpose of defining $d = \frac{2\pi}{365}$? Answer in one or two sentences.
+
+The variable $d$ represents the multiplier that we are using to change the wavelength of the sinusoidal model to fit the scale of the data that we're using. In this case, $d$ is altering the wave to represent yearly periods and by assigning a variable to this value, we are making the R code more readable and easier to work with.
+
+4.3 *(2 pts)* Plot the predictions from the model along with the data.
+
+```{r}
+ggplot(fruits, aes(x = Date, y = Dollars)) +
+  geom_line() +
+  geom_line(aes(x = Date, y = predictions), color = "red") +
+  scale_y_continuous(labels = label_number(
+    scale = 1e-6, prefix = "$", suffix = "M", accuracy = 1))
+```
+
+### 5 open ended *(6 pts)*
+
+5.1 *(2 pts)* Suppose you would like to find out which State spends the most per capita (per person) on alcohol. How would you go about answering this question, and what data set would you need?
+
+*Write a short paragraph, don't actually try to do it right now ;)*
+
+To answer this question, we would need the population of each state to be able to divide the population by the total alcohol expenditure. This would give us, on average, how much the state spends per person. However, this doesn't take into account age groups, as the legal drinking age is 21+ years old. In that case, perhaps we would use the population of each state over the legal drinking age in our calculation instead.
+
+5.2 *(4 pts)* Come up with your own question and/or data visualization for this data set.
+
+How much are the five biggest (in population) states spending on dairy and dairy products and how do they compare to each other?
+
+```{r}
+# according to Google, the five largest states in population are 
+# California, Texas, Florida, New York, and Pennsylvania
+states <- c("California", "Texas", "Florida", "New York", "Pennsylvania")
+
+foodSales |>
+  filter(State %in% states & Category == "Dairy") |>
+  group_by(State) |>
+  ggplot(aes(x = Date, y = Dollars)) +
+  geom_line(aes(color = State)) +
+  scale_y_continuous(labels = label_number(
+    scale = 1e-6, prefix = "$", suffix = "M", accuracy = 1))
+```
+
+By plotting the spending of the five largest states in Dairy products, we can see that the amount they spend is proportional to the size of their population, besides Florida and Texas. Texas is larger in population than Florida, however Florida spends more on dairy. Each state follows a very similar pattern, where there was a spike in panic buying products at the start of the pandemic. It also seems that dairy products are bought more around November and December of every year, most likely due to the holidays and the winter season.

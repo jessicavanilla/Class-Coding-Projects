@@ -1,0 +1,153 @@
+---
+title: "stat 128 - HW 1"
+author: "Jessica Villanueva"
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+## 1 penguins
+
+```{r, warning=FALSE, message=FALSE}
+# You'll need to install these packages first before you can use them.
+
+#install.packages("palmerpenguins")
+#install.packages("tidyverse")
+library(palmerpenguins)
+library(tidyverse)
+```
+
+1.  How many rows are in `penguins`? How many columns?
+
+    There are 344 rows in the penguins data set, with 8 total columns. Each row is attributed to a single, individual, and unique penguin and each column is associated with a particular characteristic of the penguin.
+
+```{r}
+penguins
+```
+
+2.  What does the `bill_depth_mm` variable in the `penguins` data frame describe? Read the help for [`?penguins`](https://allisonhorst.github.io/palmerpenguins/reference/penguins.html) to find out.
+
+    The `bill_depth_mm` variable describes the bill depth of a particular penguin in millimeters.
+
+3.  Make a scatterplot of `bill_depth_mm` vs. `bill_length_mm`. That is, make a scatterplot with `bill_depth_mm` on the y-axis and `bill_length_mm` on the x-axis. Describe the relationship between these two variables.
+
+```{r}
+ggplot(
+  data = penguins,
+  mapping = aes(x = bill_length_mm, y = bill_depth_mm)
+  ) +
+  geom_point()
+
+```
+
+After plotting the relationship between bill depth and bill length of the penguins in the data set, there doesn't seem to be much of a trend between the variables. The points seem scattered throughout the whole plot without a clear trend line. Perhaps if we added further information to the plot, like denoting penguin species, a clearer picture would emerge.
+
+```{r}
+ggplot(
+  data = penguins,
+  mapping = aes(x = bill_length_mm, y = bill_depth_mm)
+  ) +
+  geom_point(aes(color = species, shape = species))
+```
+
+Now, this is the same plot with the same variables on each axis. However, now the species of each penguin is clearly denoted. Here, we can see that each penguin species clusters around specific areas on the graph. We can see a general trend within each species that indicates that the longer the bill length, the deeper the bill depth.
+
+Additionally, the Gentoo species seems to have the largest spread and has an overall shallower bill depth than the other two species. Chinstrap penguins, while having similar bill depth to Adelie penguins, have a generally longer bill length than them.
+
+4.  What happens if you make a scatterplot of `species` vs. `bill_depth_mm`? What might be a better choice of geom?
+
+```{r}
+ggplot(
+  data = penguins,
+  mapping = aes(x = bill_depth_mm, y = species)
+  ) +
+  geom_line()
+
+```
+
+In this graph, the bill depth of each recorded penguin is shown, categorized by species. I've chosen to depict the results using a line rather than individual points because this gives the viewer a better idea of the range of possible bill depth depending on penguin species. Individual points made the plot look too cluttered and distracting.
+
+5.  Write the code to create the graph on Canvas. What does it show?
+
+```{r}
+ggplot(
+  data = penguins,
+  mapping = aes(x = island, y = body_mass_g)
+) +
+  geom_boxplot() + 
+  labs (
+    x = "island", y = "body mass (g)"
+  )
+```
+
+This graph is shows side by side boxplots of the body mass, in grams, of each penguin grouped by the island that the penguins were found in. From this, we can see that Dream island and Torgersen island penguins have a similar average body mass, with Dream island penguins having notable outliers. Biscoe island penguins' body mass distribution has more variation than the other islands and is, on average, heavier in mass than the other island penguins as well. This might be due to diet, species of penguin, diversity of population on each island, or any other number of factors.
+
+## 2 diamonds
+
+1.  Make a histogram of the carat variable in the diamonds dataset that is available when you load the tidyverse package. Experiment with different binwidths. What binwidth reveals the most interesting patterns? Describe the patterns you see.
+
+```{r}
+ggplot(
+    data = diamonds,
+    mapping = aes(x = carat)
+) +
+    geom_histogram(binwidth = 0.03)
+```
+
+This histogram shows the number of diamonds that have a certain number of carats based on the data set: diamonds. Experimenting with the binwidth, I found that 0.03 shows a hidden pattern in the data.
+
+Here, we can see that the majority of diamonds have carats values between 0 and 1. We can see that there are frequent spikes in quantity of diamonds, and then it quickly decreases and spikes again. This pattern seems to repeat. There are notable spikes at about 0.35 carats and 1 carat.
+
+2.  Write the code to create the graph on Canvas. What does it show?
+
+```{r}
+ggplot(
+  data = diamonds,
+  mapping = aes(x = carat, y = price)
+) +
+  geom_point(aes(color = cut)) +
+  labs(
+    title = "Diamond values",
+    x = "Carat", y = "Price in US Dollars",
+    color = "Cut"
+  )
+```
+
+This scatter plots shows the distribution of diamonds and their price, depending on its carat value. The points are also color-coded by the cut of the diamond, however it's a bit hard to differentiate due to the density and amount of points on the graph.
+
+Here, we can see that as the carat increases, so does the price of the diamond. The cut of the diamond is a little more sporadic in terms of whether it contributes to its price or not. You would assume if the cut was ideal, the price would naturally be higher than the other cuts, however it is not uncommon for Premium or Very Good cuts to be priced the same, if not higher than Ideal cuts.
+
+## 3 mpg
+
+1.  The `mpg` data frame that is bundled with the ggplot2 package contains 234 observations collected by the US Environmental Protection Agency on 38 car models. Which variables in `mpg` are categorical? Which variables are numerical? (Hint: Type [`?mpg`](https://ggplot2.tidyverse.org/reference/mpg.html) to read the documentation for the dataset.) How can you see this information when you run `mpg`?
+
+The variables that are categorical in the mpg dataset are: manufacturer, model, trans (type of transmission), drv (type of drive train), fl (fuel type), and class (type of car). The variables that are numerical are: displ (engine displacement in litres), year, cyl (number of cylinders), cty (city miles per gallon), and hwy (highway miles per gallon).
+
+If you run `mpg`, R will tell you what kind of data structure the data is stored in and will tell you the number of rows and columns as well. After, it will display a sample of the data, usually the first 10 observations. From this sample, you can determine whether the columns (or variables) are qualitative or quantitative data.
+
+2.  Make a scatterplot of `hwy` vs. `displ` using the `mpg` data frame. Next, map a third, numerical variable to `color`, then `size`, then both `color` and `size`, then `shape`. How do these aesthetics behave differently for categorical vs. numerical variables?
+
+```{r}
+ggplot(
+  data = mpg,
+  mapping = aes(x = displ, y = hwy)
+) +
+  geom_point(aes(color = cyl, size = cyl))
+```
+
+During these tests, I've found that continuous variables can not be mapped to the shape aesthetic, but both numerical and categorical variables work for the size and color aesthetics. Numerical (continuous) variables–when mapped to color or size–generally show up as a gradient and tend to follow a pattern, depending on the data.
+
+Categorical variables, when mapped to color, size, or shape, classify the points depending on the data. When the categorical variables don't have correlation to the other variables, it can make the graph look busy and it may be the case that no clear pattern emerges.
+
+3.  In the scatterplot of `hwy` vs. `displ`, what happens if you map a third variable to `linewidth`?
+
+```{r}
+ggplot(
+  data = mpg,
+  mapping = aes(x = displ, y = hwy, linewidth = 0.75)
+) +
+  geom_point(aes(color = cyl))
+```
+
+It seems that `linewidth` applies to linear graphs or line graphs, so applying `linewidth` to the scatterplot didn't change anything. Even changing the value of `linewidth` doesn't seem to do much.

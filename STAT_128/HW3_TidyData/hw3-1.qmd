@@ -1,0 +1,218 @@
+---
+title: "hw3 stat128"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(countrycode)
+library(scales)
+```
+
+Questions on this homework are intentionally becoming more high level, and have multiple interpretations. For example, for the question "what were the 5 most popular songs", you will have to define a reasonable metric for popularity.
+
+## 1. Billboard
+
+The following questions refer to the `billboard` dataset from the tidyr package.
+
+#### 1. What period does the data cover?
+
+```{r}
+range(billboard$date.entered)
+```
+
+The earliest song entered into the data set was on June 05, 1999 and the latest song entered into the data set was on December 30th, 2000. These songs were also monitored for 76 weeks after the date they entered the charts. So, technically, the data covers 3 years, from June 1999 to June 2002. But strictly speaking, the songs that were entered cover a span of a year and half, from June 1999 to December 2000.
+
+#### 2. Is the data complete for the year 2000?
+
+```{r}
+gather(billboard, Variable, Value) |>
+    group_by(Variable) |>
+    summarize(Completeness = mean(!is.na(Value)) * 100) |>
+    arrange(desc(Completeness))
+
+# I also found out that "stack(colMeans(!is.na(billboard))*100)" does the same thing 
+# but it's more confusing to me. Although I do like how compact it is.
+```
+
+The values column in this table indicates the completeness ratio of each of the columns of the data set. The completeness ratio is computed by taking the mean of the values, omitting the NA values, and multiplying the result by 100 to convert it into a percentage. The percentage indicates how many values in that variable actually have substance.
+
+This particular data set is littered with NA values and as such, the data set is not 100% complete for every column. In this table, we can see that no song was able to stay on the Billboard top 100 past 66 weeks after the date it was entered.
+
+#### 3. What were the 5 most popular songs?
+
+Answer by creating and commenting on a data visualization.
+
+```{r}
+# tidy the data
+bb <- billboard |>
+  pivot_longer(
+    cols = starts_with("wk"),
+    names_to = "week",
+    values_to = "rank",
+    values_drop_na = TRUE
+  ) |>
+  mutate(week = parse_number(week))
+
+bb |>
+  group_by(track) |>
+  summarize(count = n()) |>
+  slice_max(count, n = 10) |>
+  ggplot(
+    mapping = aes(x = count, y = track)
+  ) +
+  geom_col()
+
+# isolate the top 5
+bb |>
+  group_by(track) |>
+  summarize(count = n()) |>
+  slice_max(count, n = 5)
+```
+
+This plot depicts the top 10 songs that were on the billboard top 100 chart for the most amount of weeks, or the longest amount of time. The *count* represents the number of weeks they were on the charts. In order of popularity, we can see that "Higher" was on the charts longest followed by "Amazed." "Breathe" and "Kryptonite" share the same amount of weeks and finally, "With Arms Wide Open" round off the top 5 songs that were on the charts for longest.
+
+Originally, I had the tracks on the x-axis and count on the y-axis, but I decided to switch them for easier readability of the song titles. My metric for popularity was how long a song stayed on the charts, no matter the rank it had.
+
+#### 4. On average, how long does a song stay in the top 100?
+
+```{r}
+bb |>
+  group_by(track) |>
+  summarize(count = n()) |>
+  ggplot(mapping = aes(y = count)) +
+  geom_boxplot() +
+  labs(
+    x = "Songs", y = "Number of weeks on the chart"
+  ) +
+  theme(axis.text.x = element_blank())
+```
+
+This boxplot shows the distribution of the length (in weeks) a song manages to stay in the Billboard's Top 100 in the year 2000. We can see here that the median, a measurement of the average, sits around 18-19 weeks. Most songs last somewhere between 10-20 weeks on the chart. There are some notable outliers as well, with a few songs managing to last more than 40 weeks on the chart. None of the songs were able to last 60 weeks or longer, despite the data set accounting for 76 weeks.
+
+#### 5. Pick three songs that reached number one and visualize the "popularity trajectory" of their ranking over time.
+
+Comment on your visualization and explain it to a general audience. Do some songs appear to gain and lose popularity more quickly than others?
+
+```{r}
+# find songs that reached number 1 on the charts
+bb |>
+  filter(rank == 1) |>
+  distinct(track)
+
+# plot its popularity trajectory
+topSongs <- c("Say My Name", "Be With You", "Music")
+bb |>
+  filter(track %in% topSongs) |>
+  ggplot(aes(x = week, y = rank, group = track)) +
+  geom_line(aes(color = track)) +
+  scale_y_reverse()
+
+```
+
+"Be With You" by Enrique Iglesias, "Say My Name" by Destiny's Child, and "Music" by Madonna are three songs that reached rank 1 in the Billboard's Top 100 chart in the year 2000. Of these songs, "Say My Name" lasted on the chart the longest, over 30 weeks. "Music" held the highest ranking for the longest (referring to the plateau from around week 5 to week 14). "Be With You" and "Music" entered the charts at the same time, but "Music" outlasted "Be With You".
+
+## 2. World Bank
+
+The following questions refer to the `world_bank_pop` dataset in the tidyr package. I suggest you use the [countrycode package](https://cran.r-project.org/package=countrycode) to find country names.
+
+#### 1. Use the country abbreviation to join the country names to the data.
+
+```{r}
+abbr <- world_bank_pop |> group_by(country) |> summarize()
+code <- pull(abbr) # turning a tibble into a vector
+name <- countrycode(code, origin = "iso3c", destination = "country.name")
+country_names <- tibble(code, name) # turning the vector into a tibble
+
+population <- inner_join(
+  world_bank_pop, country_names, 
+  by = join_by(country == code)) |>
+  relocate(country, name)
+population
+```
+
+#### 2. How has the total population changed for the 5 largest countries?
+
+Answer by creating and commenting on a data visualization using the relative growth. Use country names, not abbreviations.
+
+```{r}
+# finding the 5 largest countries
+five <- population |>
+  filter(!is.na(name)) |>
+  select(country, name, indicator, "2017") |>
+  pivot_wider(names_from = indicator, values_from = "2017") |>
+  arrange(desc(SP.POP.TOTL)) |>
+  slice_max(SP.POP.TOTL, n = 5)
+five
+
+# plot data
+population |>
+  filter(name %in% five$name, indicator == "SP.POP.TOTL") |>
+  pivot_longer(
+    cols = starts_with("2"),
+    names_to = "year",
+    values_to = "population") |>
+  ggplot(aes(x = year, y = population)) +
+  geom_line(aes(group = name, color = name)) +
+  labs(y = "population (in millions)") +
+  scale_y_continuous(labels = label_number(
+    scale = 1e-6, suffix = "M", accuracy = 1))
+
+# plot relative growth to the year 2000
+population |>
+  filter(name %in% five$name, indicator == "SP.POP.TOTL") |>
+  pivot_longer(
+    cols = starts_with("2"),
+    names_to = "year",
+    values_to = "population") |>
+    arrange(year) |>
+    group_by(country) |>
+    mutate(relative_growth = population/first(population)) |>
+  ggplot(aes(x = year, y = relative_growth)) +
+  geom_line(aes(group = name, color = name))
+```
+
+Here, we can see the total population growth of five of the world's largest countries from 2000-2017. In order, China has the largest population followed by India, then the United States, Indonesia, and finally Pakistan. The numbers on the left indicate population in the scale of millions and we can see that there's a huge difference in population between India and the United States, the second and third largest countries in the world.
+
+In the second plot, the growth of each of the five countries is shown relative to its own population. This makes the rate of change easier to visualize for each of the countries, as it was difficult to decipher in the first plot. Here, we can see that Pakistan is growing faster than the other countries, even India. China, despite being the country with the largest populace in the world, has the lowest relative growth compared to the other four.
+
+## 3. Your own question
+
+Come up with and answer your own question for either the billboard or the world bank data. Use a data visualization in your answer and interpret it for a general audience.
+
+Which five countries have the highest urban population?
+
+```{r}
+# finding the countries with the highest urban population
+urb <- population |>
+  filter(!is.na(name)) |>
+  pivot_wider(names_from = indicator, values_from = "2017") |>
+  arrange(desc(SP.URB.TOTL)) |>
+  slice_max(SP.URB.TOTL, n = 5)
+
+# plotting their urban population growth
+population |> 
+  filter(name %in% urb$name, indicator == "SP.URB.GROW") |>
+  pivot_longer(
+    cols = starts_with("2"),
+    names_to = "year",
+    values_to = "urb_pop_growth") |>
+  ggplot(aes(x = year, y = urb_pop_growth)) +
+  geom_point(aes(color = name))
+
+# plotting their general population growth
+population |> 
+  filter(name %in% urb$name, indicator == "SP.POP.GROW") |>
+  pivot_longer(
+    cols = starts_with("2"),
+    names_to = "year",
+    values_to = "pop_growth") |>
+  ggplot(aes(x = year, y = pop_growth)) +
+  geom_point(aes(color = name))
+```
+
+The countries with the highest total urban population are China, Indonesia, the United States, Brazil, and Indonesia, as of 2017. In this plot, we see each country's urban population growth rate. Each country's growth rate has a general downward trend over the years, indicating they're urbanizing slower and slower. This could be attributed to the general population growth rate (seen in the second plot) also decreasing, since the urban growth rate is part of the general population growth rate.

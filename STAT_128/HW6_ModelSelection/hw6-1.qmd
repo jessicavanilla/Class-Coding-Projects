@@ -1,0 +1,114 @@
+---
+title: "hw6 Stat 128"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+
+
+read_water_sensor <- function(fname){
+  water_raw <- read_tsv(fname, comment = "#")
+  
+  water <- water_raw |>
+    slice(-1) |>
+    select(3, 5, 6) 
+  
+  colnames(water) <- c("datetime", "temp_cel", "qual")
+  
+  water <- water |>
+    mutate(datetime = ymd_hm(datetime),
+           temp_far = as.double(temp_cel)*(9/5) + 32) |>
+    mutate(hour = hour(datetime) + minute(datetime) / 60)
+  return(water)
+}
+```
+
+#### 1. Does there appear to be a seasonal trend component to water temperature?
+
+Read in the file provided in Canvas using the function above. Plot the data and write a brief paragraph explaining the plot. Comment on the seasonal component, the long term changes in average water temperature. Is it as expected?
+
+```{r}
+water <- read_water_sensor("/Users/Jessica/Downloads/STAT_128/HW6_ModelSelection/oct7.txt")
+water |>
+  ggplot(aes(x = datetime, y = temp_far)) +
+  geom_line()
+range(water$datetime)
+```
+
+The plot spans a month from the first week of September to the first week of October. In this time, we can see the temperature of the water, on average, fluctuate throughout the month. The amplitude of each daily period changes. We can see dips and rises in the data as well, suggesting that the temperature kind of goes all over the place based on weather patterns and changes in environment.
+
+#### 2. Propose and fit your own model for the temperature data.
+
+Write down and describe the mathematical formulation of the model using $\LaTeX$, along with the fitted parameters. Note that R can treat the `datetime` as a number, so an easy way to create a new model is to just add a linear term for `datetime` to one of the existing models, so the formula will look something like `lm(temp_far ~ datetime + …other terms…)`.
+
+Of course, I encourage you to be as creative as you like in coming up with more sophisticated models!
+
+Mathematical formulation:
+
+$$
+y = d + \beta_1\sin(2*pi/24 * h) + \beta_2\cos(2*pi/24 *h)
+$$
+
+where y is the variables we're predicting (temperature in fahrenheit), d is the day, and h is the hour of the day.
+
+```{r}
+mul <- 2*pi/24
+
+model <- lm(temp_far ~ as.factor(day(datetime)) +
+               + sin(mul * hour(datetime)) + 
+              cos(mul * hour(datetime)), water)
+water$pred1 <- predict(model, water)
+
+coef(model)
+```
+
+#### 3. Plot a comparison of the models.
+
+Plot the actual data and the predicted values for the proposed model above along with two other models for a 2 day period, recreating a similar plot as in the Canvas discussion.
+
+```{r}
+model2 <- lm(temp_far ~ as.factor(day(datetime)) + poly(hour(datetime), 3), water)
+water$pred2 <- predict(model2, water) 
+
+model3 <- lm(temp_far ~ as.factor(day(datetime)) + 
+               sin(2 * pi / 24 * (hour(datetime) + minute(datetime)/60)), water)
+water$pred3 <- predict(model3, water)
+
+water |>
+  filter(day(datetime) > 26 & day(datetime) < 29) |>
+  rename(actual_data = temp_far, formula = pred1, cubic = pred2, sinusoidal = pred3) |>
+  relocate(actual_data, .after = 5) |>
+  pivot_longer(
+    cols = actual_data:sinusoidal,
+    names_to = "model",
+    values_to = "temp_far",
+    values_drop_na = TRUE) |>
+  ggplot(aes(x = datetime, y = temp_far, fill = model)) +
+  geom_line(aes(color = model))
+```
+
+#### 4. Choose the best model.
+
+Calculate the Mean Squared Error (MSE), which is the average squared difference between the predicted values and the data for each of the above models. In the equation below $y_i$ is the actual recorded temperature value, and $\hat{y}_i$ is the predicted.
+
+$$
+MSE = \frac{1}{n} \sum_{i=1}^n (y_i - \hat{y}_i)^2
+$$
+
+Use the MSE together with the plot above to select the best model. Use any other statistics or plots you like. Justify your selection in a paragraph.
+
+```{r}
+mse <- function(X){
+  mean((predict(X, water) - water$temp_far)^2)
+}
+mse(model) # formula
+mse(model2) # cubic
+mse(model3) # sinusoidal
+```
+
+Based on the MSE predicted for each model, the custom mathematical formula fits the actual data most accurately. It has the lowest calculated error, but also in seeing the graph itself, the viewer can see that the blue line fits the red line the closest. The period of each curve is the most similar and it imitates the steps of the actual data.

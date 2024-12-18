@@ -1,0 +1,222 @@
+---
+title: "midterm"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r, message=FALSE}
+# install.packages("scales")
+library(tidyverse)
+library(scales)
+```
+
+## 1. Warm up - 7 pts total
+
+Each row in the data set counts the monthly US border crossings at a particular place, for a particular kind of vehicle. For example, the first row says that 46 buses crossed the US-Mexico border in Roma Texas in the month of July 2023.
+
+#### 1.1 - 2 pts
+
+Read in the border crossing data into a tibble / data frame called `border`. How many columns and rows are there?
+
+> There are 10 columns and 394866 rows.
+
+```{r}
+border <- read_csv("/Users/Jessica/Downloads/STAT_128/midterm/Border_Crossing_Entry_Data.csv")
+dim(border)
+border
+```
+
+#### 1. - 2 pts
+
+Change `border` by renaming the `Port Name` column to `port_name` to make it easier to work with in the questions that follow.
+
+```{r}
+border <- border |>
+  rename(port_name = "Port Name")
+```
+
+#### 1. - 2 pts
+
+Add a new column to `border` called `Date2` by converting the `Date` column from a character vector into a date.
+
+```{r}
+# Hint my() means "month-year", similar to ymd() is "year-month-day"
+# Convert to date:
+my("Oct 2024")
+
+border <- border |>
+  mutate(Date2 = my(Date))
+
+
+```
+
+#### 1. - 1 pts
+
+What time period does this data cover? Answer using the `Date2` column you created above.
+
+```{r}
+range(border$Date2)
+```
+
+The data covers a span of time from January 1996 to August 2024.
+
+## 2. Analysis - 11 pts total
+
+#### 2. - 1 pts
+
+Does `"Sacramento"` appear in the data set?
+
+> yes or no?
+
+```{r}
+border |>
+  filter(port_name == "Sacramento" | State == "Sacramento")
+```
+
+No, Sacramento does not appear in the data set, in neither of the columns that hold place names.
+
+#### 2. - 2 pts
+
+What is the most frequently occurring value in the `Measure` column?
+
+```{r}
+border |>
+  group_by(Measure) |>
+  summarize(count = n()) |>
+  arrange(desc(count))
+```
+
+The most frequently occurring value in the Measure column of the tibble is "Personal Vehicles" with 37,151 mentions in the data set.
+
+#### 2. - 2 pts
+
+When and where were the most pedestrian (on foot) border crossings? Use `head()` to show the top 6.
+
+```{r}
+border |>
+  select(Date2, Measure, port_name, State, Border, Value) |>
+  filter(Measure == "Pedestrians") |>
+  arrange(desc(Value)) |>
+  head(n = 6)
+```
+
+At the US-Mexico Border, the most pedestrians crossings occur at San Ysidro in California, with the most people crossing the border occurring in July & August of 2001. Subsequent months are March, May, April, and June in order of how many people crossed, from greatest to least.
+
+#### 2. - 4 pts
+
+Plot the total number of car passengers crossing the border each month.
+
+```{r}
+border |>
+  filter(Measure == "Personal Vehicle Passengers") |>
+  ggplot(aes(x = Date2, y = Value)) +
+  geom_point(alpha = 0.5) +
+  scale_y_continuous(labels = label_number(
+    scale = 1e-6, suffix = "M", accuracy = 1)) +
+  labs(subtitle = "Car Passengers Crossing the Border", 
+       x = "Month of the Year")
+```
+
+#### 2. - 2 pts
+
+Comment on the above plot. Approximately how many car passengers cross the border each month? In what year does the pattern seem to change? What happened during the COVID pandemic in early 2020?
+
+> The number of car passengers varies between 0 and 4.5 million. There were a large quantity of crossings in the 2000s, but by 2010 the crossings saw a decline. In early 2020, there was a sharp decrease in quantity of crossings when the pandemic hit.
+
+## 3. Modeling - 9 pts total
+
+#### 3. - 2 pts
+
+Create a new tibble `nf` containing only the counts of pedestrians crossing in Buffalo Niagara Falls between 2014 and 2018, inclusive. Use `head()` to show the first 6 rows.
+
+```{r}
+nf <- border |>
+  filter(Measure == "Pedestrians" & port_name == "Buffalo Niagara Falls"
+         & year(Date2) >= 2014 & year(Date2) <= 2018)
+nf |>
+  head(n = 6)
+```
+
+#### 2. - 2 pts
+
+Create a plot of the above data, with date on the x axis and number of pedestrians on the y axis.
+
+```{r}
+nf |>
+  ggplot(aes(x = Date2, y = Value)) +
+  geom_col() +
+  labs(x = "Month of the Year", y = "Number of Pedestrians")
+
+nf |>
+  ggplot(aes(x = Date2, y = Value)) +
+  geom_line() +
+  labs(x = "Month of the Year", y = "Number of Pedestrians")
+
+```
+
+#### 2. - 2 pts
+
+Let $y$ be the number of pedestrians crossing in the `nf` data above, `x` be the number of the month (January = 1, February = 2), etc. Let $a = \frac{2\pi}{12}$ for an annual cycle. Fit the following statistical model:
+
+$$
+y = \beta_0 + \beta_1 \cos(ax)
+$$
+
+```{r}
+# Hint: Use month() to extract the month as a number.
+# month(ymd("2024-10-14"))
+
+a <- 2*pi/12
+
+model <- lm(Value ~ cos(a * month(Date2)), nf)
+nf$predictions <- predict(model, nf)
+
+coef(model)
+```
+
+Show that the fitted coefficients are:
+
+$$
+y = 26,879.47 -19,284.18 \cos(ax)
+$$
+
+#### 2. - 2 pts
+
+Create a plot of the above data, with date on the x axis and number of pedestrians on the y axis. Add a visually distinct line for the predictions from the model.
+
+```{r}
+ggplot(nf, aes(x = Date2, y = Value)) +
+  geom_line() +
+  geom_line(aes(x = Date2, y = predictions), color = "red") +
+  labs(subtitle = "Pedestrian predictions in red", 
+       x = "Month of the Year", y = "Number of Pedestrians")
+```
+
+#### 2. - 1 pts
+
+Comment on the above graph. Where does the model appear to be doing poorly, and how could we improve it?
+
+The model, in general, is shortcoming in its predictions. It doesn't predict the highs well and it can be shifted a bit to the right to match the true values of the graph. The lows are pretty accurate though.
+
+## 4. Open Ended - 4 pts
+
+Ask your own question of the border crossing data, and answer it using a data visualization.
+
+Answers vary
+
+On average, how many border crossings are there every month of the year? Which month seems to have the most?
+
+```{r}
+border |>
+  group_by(month = month(Date2)) |>
+  summarize(avg = mean(Value)) |>
+  ggplot(aes(x = month, y = avg)) +
+  geom_col() +
+  scale_x_continuous(labels = label_number(
+    scale = 1, accuracy = 1))
+```
+
+Across all the years in the data set, on average, June and July seem to have the most border crossings in the U.S. In the winter (January and February), we see a slight decline in number of crossings.

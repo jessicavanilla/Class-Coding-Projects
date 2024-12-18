@@ -1,0 +1,331 @@
+---
+title: "stat 128 final - fall 24"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r}
+pts <- c(2, 2, 2, 3, 4, 2, 4, 2, 2, 4, 3, 4, 4, 4)
+paste("number of questions:", length(pts))
+paste("total points possible:", sum(pts))
+```
+
+# Part 1- Data Analysis
+
+## 1
+
+*2 pts*
+
+*What does one row in the `relig_income` data set represent?*
+
+Answer:
+
+```{r}
+library(tidyverse)
+
+head(relig_income)
+```
+
+One row represents a religion demographic and summarizes how many people (who are a part of that religion) make a specific range of income ranging from less than \$10K all the way to over \$150k.
+
+## 2
+
+*2 pts*
+
+*What does one row in the pivoted `ri` data represent?*
+
+Answer:
+
+```{r}
+ri <- relig_income %>%
+  pivot_longer(
+    cols = !religion, 
+    names_to = "income_range", 
+    values_to = "count"
+  )
+
+head(ri)
+```
+
+One row in this pivoted data frame now represents the amount of people who fit a specific income range according to their religion. So there is a separate row for the people who make less than \$10K if they are in different religions.
+
+## 3
+
+*2 pts*
+
+*Modify the following code so that it produces the exact same result, without using the pipe operator `|>`*.
+
+```         
+ri2 <- filter(ri, grepl("[0-9]", income_range)) |>
+  mutate(income = as.numeric(str_extract(income_range, "[0-9]+")))
+```
+
+```{r}
+# TODO: Modify
+ri2 <- mutate(filter(ri, grepl("[0-9]", income_range)), 
+              income = as.numeric(str_extract(income_range, "[0-9]+")))
+head(ri2)
+```
+
+## 4
+
+*3 pts*
+
+*The code above does several things in one line. Convert the following code into a function, and test it on the example4 vector below.*
+
+```         
+as.numeric(str_extract(income_range, "[0-9]+"))
+```
+
+```{r}
+example4 <- c("$20-30k", "$30-40k", "$40-50k")
+
+# TODO: Write and test function
+income <- function(income_range){
+  as.numeric(str_extract(income_range, "[0-9]+"))
+}
+
+income(example4)
+```
+
+## 5
+
+*4 pts*
+
+*`ri2$income` shows the lower bound of the income range except in one case. Create `ri3` that handles that case by setting the value of the `income` column to a reasonable value.*
+
+*Hint: Replace elements in a data frame with `ri3[rows, "income"] <- reasonable_value`* *where `rows`* *is a logical vector.*
+
+```{r}
+# TODO:
+ri3 <- ri2
+rows <- ri3$income_range == "<$10k"
+ri3[rows, "income"] <- 0
+ri3
+```
+
+## 6
+
+*2 pts*
+
+*Determine the 4 most popular religions in the data.*
+
+```{r}
+# TODO
+ri2 |>
+  group_by(religion) |>
+  summarize(total = sum(count)) |>
+  arrange(desc(total)) |>
+  head(4)
+```
+
+The four most popular religions are Evangelical Protestant, Catholic, Mainline Protestant, and Unaffiliated.
+
+## 7
+
+*4 pts*
+
+*Use either `ri2` or `ri3` to make the plot shown on Canvas where the final is posted.*
+
+*Hint: add another column*.
+
+```{r}
+# TODO:
+ri3 <- ri3 |>
+  group_by(religion) |>
+  mutate(total = sum(count))
+
+ri3 |>
+  filter(religion == "Catholic" | religion == "Evangelical Prot" | religion == "Mainline Prot" | religion == "Unaffiliated") |>
+  mutate(percent = count/total * 100) |>
+  ggplot(aes(x = income, y = percent)) +
+  geom_line(aes(color = religion)) +
+  scale_x_continuous(breaks = seq(0, 150, by=50))
+
+```
+
+## 8
+
+*2 pts*
+
+*Based on the plot, which religion(s) seem to have the members with the lowest and highest incomes?*
+
+Answer: Based on the plot, the religion that seems to have the most amount of members with the highest incomes are the Mainline Protestants. The religion with the most amount of the members with the lowest incomes seem to be the Evangelical Protestants. They also have the smallest amount of members in the highest income bracket.
+
+## 9
+
+*2 pts*
+
+*These income lines for the plot in Q7 seem to have some unnatural shapes. Why is there a dip at 40 and a spike at 50? (Hint: look carefully at the data)*
+
+Answer: In this plot, we used the lower bound of the range of the income to represent the percentage of people who fall into that range. In the original data, the ranges go from 40-50 and then from 50-75. Since the ranges are not equidistant from each other, there would naturally be more people who fall under the 50-75 category as opposed to the 40-50 category. This is represented in the data by the dip at 40 and the spike at 50.
+
+Additionally 50-75 happens to be the most common range of incomes for anyone to have and represents the majority of the middle class.
+
+# Part 2- Programming
+
+## 10
+
+*4 pts*
+
+*Carefully explain R's argument matching rules in the context of the following two examples. The output is the same, but are the function calls equivalent? Was `...`* *used? Read the documentation for `combn`*.
+
+Answer: The first call uses a combination of positional and named arguments to make the function call. The first two arguments are positional and follow the documentation for `combn`. The arguments following that are named arguments to explicitly change the default settings.
+
+The second call uses named arguments to trickily do the same thing as the first call. Even though the vector is not positionally first, R still knows that it's the vector source for the combinations. The second call is also using partial argument matching. And since na.rm was passed in as an argument, *`...`* was used (because na.rm is not explicitly included in the parameters for `combn)`.
+
+```{r}
+combn(c(NA, 1, 2), 2, FUN = max, simplify = FALSE, na.rm = TRUE)
+
+combn(m = 2, c(NA, 1, 2), na.rm = TRUE, s = FALSE, F = max)
+```
+
+## 11
+
+*3 pts*
+
+*Consider the following function `pad` which is supposed to add 0's all around the edges of a matrix. Find and fix the bug.*
+
+```         
+> pad(a)  # desired behavior:
+
+     [,1] [,2] [,3] [,4] [,5] [,6]
+[1,]    0    0    0    0    0    0
+[2,]    0    2    1    1    1    0
+[3,]    0    1    1    1    1    0
+[4,]    0    0    0    0    0    0
+```
+
+```{r}
+# TODO: Find the bug and fix it!
+pad <- function(x, value = 0){
+  nr <- nrow(x)
+  nc <- ncol(x)
+  xp <- matrix(value, nrow = nr + 2, ncol = nc + 2)
+  xp[2:(nr + 1), 2:(nc + 1)] <- x
+  xp
+}
+
+a <- matrix(1, nrow = 2, ncol = 4)
+a[1, 1] <- 2
+pad(a)
+# Will be an error until you fix. demonstrate it works
+```
+
+## 12
+
+*4 pts*
+
+*Write two nontrivial examples along with expected output for a function `count_infected_neighbors`that accepts a matrix `x` and indices `i, j` and returns the number of the 8 neighboring cells in `x` that have a value of 1, assuming `x[i, j]` is `0`.*
+
+```         
+# TODO: write examples
+# Hint: Use pad(a) from above
+```
+
+```{r}
+# examples
+b <- matrix(0, nrow = 2, ncol = 4)
+b[1, 1] <- 1
+b[2, 3] <- 1
+b <- pad(b)
+b
+
+c <- matrix(0, nrow = 2, ncol = 4)
+c[1, 2] <- 1
+c[2, 1] <- 1
+c[2, 2] <- 1
+c[1, 4] <- 1
+c <- pad(c)
+c
+```
+
+## 13
+
+*4 pts*
+
+*Implement the `count_infected_neighbors` described above, and verify it works on the examples you came up with.*
+
+```{r}
+count_infected_neighbors <- function(X, row, col){
+  count <- 0
+  if(X[row, col - 1] == 1)
+    count = count + 1
+  if(X[row - 1, col - 1] == 1)
+    count = count + 1
+  if(X[row + 1, col - 1] == 1)
+    count = count + 1
+  if(X[row + 1, col] == 1)
+    count = count + 1
+  if(X[row - 1, col] == 1)
+    count = count + 1
+  if(X[row, col + 1] == 1)
+    count = count + 1
+  if(X[row - 1, col + 1] == 1)
+    count = count + 1
+  if(X[row + 1, col + 1] == 1)
+    count = count + 1
+  count
+}
+
+#testing
+count_infected_neighbors(b, 3, 2) # should return 1
+count_infected_neighbors(b, 3, 3) # should return 2
+count_infected_neighbors(c, 3, 4) # should return 3
+```
+
+## 14
+
+*4 pts*
+
+*The following code implements the step in our SIR model, but it has a bug. Find and fix the bug, and test the function to verify that it works as intended.*
+
+```{r}
+# TODO: Find and fix bug
+infect_step <- function(x, prob_infect = 0.25) {
+  nr <- nrow(x)
+  nc <- ncol(x)
+  xp <- pad(x)
+  
+  new_x <- xp
+  
+  midrows <- 2:(nr + 1)
+  midcols <- 2:(nc + 1)
+  for(i in midrows) {
+    for(j in midcols) {
+      if(xp[i, j] == 0){   # Susceptible
+        count <- count_infected_neighbors(xp, i, j)
+        if(0 < count){     # Has infected neighbors
+          prob0 <- (1 - prob_infect)^count
+          infect <- sample(c(TRUE, FALSE), 1, prob = c(1 - prob0, prob0))
+          if(infect){      # Got infected, bummer!
+            new_x[i, j] <- 1
+          }
+        }
+      }
+    }
+  }
+  new_x[xp == 1] <- 2
+  
+  return(new_x[midrows, midcols])
+}
+
+# testing
+infect_step(b)
+infect_step(c)
+```
+
+## 15 - Extra credit
+
+*3 pts*
+
+*Explain at a high level how the `infect_step` function above works, in your own words.*
+
+Answer: The function takes in a matrix as well as a probability of possible infection for neighbors that are near an infected cell. The function then saves the dimensions of the matrix in variables and pads the matrix to be bigger on all sides by 1 to avoid out of bounds errors. It then copies this matrix and saves the dimensions of the middle rows (without the padding) to iterate through.
+
+The two nested for loops ensure that all of the rows and columns will be iterated through by the function. The if statement checks to see if the current cell we're on is susceptible to infection. If it is, we're gonna count the number of surrounding neighbors that are infected. The second if statement checks if there are existing infected neighbors. If this is true, we're going to calculate (based on the probability) if the current cell that we're on gets infected or not. The infect variable is holding a true or false value indicating whether this particular cell has had close contact with the infected cell. If this is true, then the last if statement will change the current cell that we're on into an infected cell (indicated by 1) and move on to the next cell in the matrix.
+
+After the entire matrix is iterated through, the function then replaces all of the previously infected cells into removed cells (indicated by 2) and returns the original sized matrix without all the padding but with all the changes we made to the cells.

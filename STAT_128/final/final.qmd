@@ -1,0 +1,238 @@
+---
+title: "stat 128 final - fall 24"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r}
+pts <- c(2, 3, 4, 5, 3, 3, 4, 3, 2)
+paste("total points possible:", sum(pts))
+
+library(tidyverse)
+```
+
+## 1
+
+*2 pts*
+
+A set of numbers is said to satisfy [Benford's Law](https://en.wikipedia.org/wiki/Benford%27s_law) if the leading digit $d, 1 \leq d \leq 9$ occurs with probability:
+
+$$
+P(d)=\log _{10}(d+1)-\log _{10}(d)=\log _{10}\left({\frac {d+1}{d}}\right)=\log _{10}\left(1+{\frac {1}{d}}\right)
+$$ If $P(A) = 0.3$ and $P(B) = 0.05$, then we would say that $A$ occurs 6 times as often as $B$. Use R to calculate how many more times the digit 2 occurs compared to the digit 7, according to Benford's Law.
+
+```{r}
+law <- function(x) {
+  prob = log10(1 + 1/x)
+  prob
+}
+
+law(2)
+law(7)
+law(2)/law(7)
+```
+
+The digit 2 occurs 3.036478 times more than 7 according to Benford's Law.
+
+## 2
+
+*3 pts*
+
+Create a *scatter plot* with the digits from 1 to 9 on the x axis, and $P(d)$ on the y axis.
+
+```{r}
+digits <- c(1:9)
+benford <- data.frame(
+    digits = c(1:9), 
+    results = law(digits)
+)
+
+ggplot(benford, mapping = aes(x = digits, y = results)) +
+  geom_point() +
+  labs(y = "P(d)") +
+  scale_x_continuous(breaks = seq(1, 9, by=1))
+  
+```
+
+## 3
+
+*4 pts*
+
+When I searched on Google for "R Benford's Law", I found a [post](https://rstudio-pubs-static.s3.amazonaws.com/205239_5c34105c42b643259f2353762f31c330.html) that defines the following functions with their accompanying descriptions.
+
+> Define a function that can pick out the first digit of the character representation of a number:
+
+```{r}
+first_digit <- function(x) substr(gsub('[0.]', '', x), 1, 1)
+```
+
+> Define a function that counts the absolute frequencies of each first digit (using “table”), calculates the relative frequencies (by dividing by “length”), and stores the results in a data.frame:
+
+```{r}
+fd_proportion <- function(x) data.frame(table(first_digit = first_digit(x)) / length(x))
+```
+
+1.  Write some simple tests to determine if these functions work as advertised.
+2.  If they do not work, then modify them so they do.
+3.  Improve `fd_proportion` by modifying it so that it produces more meaningful variable names in the context of Benford's Law.
+
+```{r}
+# testing first_digit
+x <- "27"
+y <- 575
+first_digit(x)
+first_digit(y)
+
+# testing fd_proportion
+z <- c(21, 22, 23, 24, 31, 32, 33)
+fd_proportion(z)
+```
+
+## 4
+
+*5 pts*
+
+Does the `price` column in the `diamonds` data set in the ggplot2 package appear to follow Benford's Law? Answer with a plot and a brief paragraph justifying your conclusion.
+
+```{r}
+prices <- fd_proportion(diamonds$price)
+ggplot(prices, aes(x = first_digit, y = Freq)) +
+  geom_point()
+```
+
+This scatterplot demonstrates how many times each digit appears as the first digit of the price of a diamond in the diamonds data set. From this, we can see that 1 appears the most often follows by 2 and 4 (tied). The prices column generally does follow Benford's law, however 2, 3, and 4 varies off of what is usually predicted.
+
+## 5
+
+*3 pts*
+
+Briefly explain R's S3 object oriented system through a single example relating `dd <- data()` to `print` and `utils:::print.packageIQR`.
+
+```{r}
+dd <- data()
+class(dd)
+print(dd)
+```
+
+R's S3 OOP allows methods to be dispatched based on the class of the object that it's called on. For instance, if we hold the contents of data() into a variable called dd, dd is now of class packageIQR. The generic method print() is then called on dd, in which it will execute the specific print method for objects of class packageIQR because it detected the class of dd. But since print() is a generic method, it can be called for any object without having to specify the specific print method we need for that class type.
+
+## 6
+
+*3 pts*
+
+```{r}
+d <- data() |>
+  getElement("results") |>
+  data.frame() |>
+  getElement("Item") 
+head(d)
+```
+
+Rewrite the above R code to do the following:
+
+1.  Use `[[` rather than `getElement`
+2.  Use only nested function calls `bar(foo())` rather than a pipe `foo() |> bar()`.
+3.  Save the result to `d2` rather than `d`
+4.  Verify that `d` and `d2` are the same.
+
+```{r}
+d2 <- data.frame(data()[["results"]])[["Item"]]
+head(d2)
+```
+
+## 7
+
+*4 pts*
+
+Write a function that returns `TRUE` if an object is a data frame and has any numeric columns, and `FALSE` otherwise.
+
+```{r}
+# return TRUE
+t1 <- data.frame(a = 100, b = "hi")
+
+# return FALSE - it's a list, not a data frame
+t2 <- as.list(t1)
+
+# return FALSE - no numeric columns
+t3 <- data.frame(b = "only strings")
+```
+
+```{r}
+numericDataframe <- function(X){
+  if(class(X) == "data.frame"){
+    for(name in colnames(X)){
+      if(is.numeric(X[[name]])){
+        return (TRUE)
+      }
+    }
+  }
+  return (FALSE)
+}
+
+print(numericDataframe(t1))
+print(numericDataframe(t2))
+print(numericDataframe(t3))
+```
+
+## 8
+
+*3 pts*
+
+The following function quantifies the extent to which a numeric vector agrees with Benford's Law.
+
+```{r}
+benford <- function(x){
+  expected <- log10(1 + 1 / (1:9))
+  fd <- substr(gsub('[0.]', '', x), 1, 1)
+  fd <- factor(fd, levels = 1:9)
+  actual <- table(fd) / length(x)
+  1 - sum(abs(actual - expected))
+}
+```
+
+1.  Do bigger or smaller values of `benford(x)` mean that the numbers in `x` follow Benford's Law?
+    1.  Bigger values of benford(x) mean that the numbers in x follow Benford's Law.
+2.  What's the greatest value that `benford(x)` can return? Provide an example of a numeric vector that is within 0.1 of the greatest value.
+    1.  The greatest value benford(x) can return is 1.0. The example that I provide returns about 0.9.
+3.  What's the smallest value that `benford(x)` can return? Provide an example of a numeric vector that produces the smallest value.
+    1.  The smallest value benford(x) can return is -1.0. In my example, I was able to return about 0.9.
+
+```{r}
+a <- sample(1:100, 50, replace = TRUE)
+benford(a)
+b <- c(20, 21, 22, 23, 25)
+benford(b)
+c <- c(10, 20, 30, 40, 50)
+benford(c)
+d <- sample(1:100, 100, replace = TRUE)
+benford(d)
+e <- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 8, 8, 9)
+benford(e)
+f <- c(9)
+benford(f)
+```
+
+## 9
+
+*2 pts*
+
+In the function above, what is the purpose of the line `fd <- factor(fd, levels = 1:9)`?
+
+This line of code turns all of the substrings taken from the first digits of every number and turns it into a usable form to manipulate.
+
+*Hint: experiment with taking it out.*
+
+## 10 extra credit
+
+*3 pts extra credit*
+
+*Tip: Save this question for last!*
+
+`d` from above contains all the data sets available in R. Use work from questions 1 through 8 to look through all the data frames in R and find the column that has the largest value of `benford()`. Recreate the plot from question 4 and comment on it.
+
+```{r}
+# Hint: use get()
+```

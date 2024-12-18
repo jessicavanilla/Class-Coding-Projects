@@ -1,0 +1,221 @@
+---
+title: "hw8"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+Function practice:
+
+```{r}
+# practice writing functions
+randWalk <- function(n = 50) { # parameter: how many steps to take
+  pos <- 0
+  vec <- c(0)
+  for(i in 1:n){
+    pos <- pos + sample(c(-1, 1), size = 1)
+    vec <- append(vec, pos)
+  }
+  vec
+}
+
+randWalk(100)
+
+walk2 <- function(n = 50){
+  steps <- sample(c(-1, 1), size = n, replace = TRUE)
+  cumsum(steps)
+}
+
+walk2(100)
+
+# print square numbers of the first 5 integers
+for(i in 1:5){ # can also use seq(5)
+  print(i^2)
+}
+```
+
+```{r}
+library(tidyverse)
+```
+
+## Initializing the Infection
+
+Write a function that initializes the disease simulation by randomly infecting some proportion of the population. The function should accept these arguments:
+
+-   number of rows in the grid
+
+-   number of columns in the grid
+
+-   probability each cell starts out infected, defaulting to 0.1.
+
+Hint: Use a matrix with 0's representing susceptible, 1 for infected and 2 for removed.
+
+```{r}
+set.seed(34890)
+randInfect <- function(row, col, prob = 0.1){
+  X <- matrix(0, row, col) # 0 indicating susceptible
+  infected <- sample(c(TRUE, FALSE), row * col, replace = TRUE, prob = c(prob, 1 - prob))
+  infected <- matrix(infected, nrow = row)
+  X[infected] <- 1 # 1 indicating infected
+  X
+}
+
+# testing function
+randInfect(4, 5) 
+```
+
+## Plotting the Infection
+
+Write a function to plot the Susceptible, Infected, and Removed cells with the colors white, red, and grey, respectively.
+
+```{r}
+plotInitMatrix <- function(X){
+  newX <- apply(X, 2, rev)
+  image(t(newX), col = c("white", "red"), axes = FALSE, asp = 1)
+  title(main = "Initial Infection")
+}
+
+plotMatrix <- function(X, title = "Infection"){
+  newX <- apply(X, 2, rev)
+  image(t(newX), col = c("white", "red", "gray"), axes = FALSE, asp = 1)
+  title(main = title)
+}
+
+# testing the function
+plotInitMatrix(randInfect(50, 50))
+```
+
+## Spreading the Infection
+
+Use vectorized code (not a for loop) to randomly infect approximately 50% of the cells EITHER ABOVE OR BELOW the infected cells. This is part of one step in the process. A full step will expose 8 neighboring cells to infection: 4 sides, and 4 corners.
+
+Plot your results to demonstrate correctness.
+
+1.  Use par(mfrow = c(1, 2))  for two side by side plots.
+
+2.  Index into the matrix by selecting all elements excluding the first or last row.
+
+```{r}
+par(mfrow = c(1, 2))
+
+# infecting upwards (above)
+# boolean matrix of those who have had close contact with the cell above
+cc_above <- sample(c(FALSE, TRUE), prob = c(0.5, 1 - 0.5), 
+                   size = (50 - 1) * 50, replace = TRUE)
+cc_above <- matrix(cc_above, nrow = 50 - 1, ncol = 50)
+# the inital matrix of cells infected
+Y <- randInfect(50, 50)
+# boolean matrix of a cell that had close contact with an **infected** cell
+new_infection_above <- Y[-1, ] == 1 & cc_above
+# applying the new infected cells to the original matrix, including removed cells
+Yabove <- Y
+Yabove[-50 , ][new_infection_above] <- 1
+Yabove[Y == 1] <- 2
+
+plotInitMatrix(Y)
+plotMatrix(Yabove, "Infect neighbors above")
+```
+
+## Full Simulation
+
+Extend the step above to all 8 neighbors of a cell by writing a function that performs a single infection step. The rule is that each infected cell infects susceptible neighbors with some fixed probability. Vectorized code or explicit for loops are both fine. The function should accept the following:
+
+1.  Data structure representing the current SIR (susceptible, infected, removed) state. This will be a matrix if you're following the standard advice. 🤔
+
+2.  Probability of infection, defaulting to 0.125
+
+Plot your results for a single step to demonstrate correctness. Your plot should resemble the one below, with new infections occurring randomly on all sides and corners of old infections.
+
+```{r}
+# displays two images side by side
+par(mfrow = c(1, 2))
+
+infection <- function(X, prob = 0.125){
+  # infecting upwards (above)   -------------------------------------------------------
+  # boolean matrix of those who have had close contact with the cell above
+  cc_above <- sample(c(TRUE, FALSE), prob = c(prob, 1 - prob), 
+                     size = (nrow(X) - 1) * ncol(X), replace = TRUE)
+  cc_above <- matrix(cc_above, nrow = nrow(X) - 1, ncol = ncol(X))
+  # boolean matrix of a cell that had close contact with an **infected** cell
+  new_infection_above <- X[-1, ] == 1 & cc_above
+  # applying the new infected cells to the original matrix
+  Xabove <- X
+  Xabove[-nrow(X) , ][new_infection_above] <- 1
+  
+  
+  # infecting downwards (below) -------------------------------------------------------
+  cc_below <- sample(c(TRUE, FALSE), prob = c(prob, 1 - prob), 
+                     size = (nrow(X) - 1) * ncol(X), replace = TRUE)
+  cc_below <- matrix(cc_below, nrow = nrow(X) - 1, ncol = ncol(X))
+  new_infection_below <- X[-nrow(X), ] == 1 & cc_below
+  Xbelow <- X
+  Xbelow[-1 , ][new_infection_below] <- 1
+  
+  # infecting to the right      -------------------------------------------------------
+  cc_right <- sample(c(TRUE, FALSE), prob = c(prob, 1 - prob), 
+                     size = nrow(X) * (ncol(X) - 1), replace = TRUE)
+  cc_right <- matrix(cc_right, nrow = nrow(X), ncol = ncol(X) - 1)
+  new_infection_right <- X[ , -ncol(X)] == 1 & cc_right
+  Xright <- X
+  Xright[ , -1][new_infection_right] <- 1
+  
+  # infecting to the left       -------------------------------------------------------
+  cc_left <- sample(c(TRUE, FALSE), prob = c(prob, 1 - prob), 
+                     size = nrow(X) * (ncol(X) - 1), replace = TRUE)
+  cc_left <- matrix(cc_left, nrow = nrow(X), ncol = ncol(X) - 1)
+  new_infection_left <- X[ , -1] == 1 & cc_left
+  Xleft <- X
+  Xleft[ , -ncol(X)][new_infection_left] <- 1
+  
+  # infecting northeast         -------------------------------------------------------
+  cc_northeast <- sample(c(TRUE, FALSE), prob = c(prob, 1 - prob), 
+                   size = (nrow(X) - 1) * (ncol(X) - 1), replace = TRUE)
+  cc_northeast <- matrix(cc_northeast, nrow = nrow(X) - 1, ncol = ncol(X) - 1)
+  new_infection_northeast <- X[-1, -ncol(X)] == 1 & cc_northeast
+  Xnortheast <- X
+  Xnortheast[-nrow(X) , -1][new_infection_northeast] <- 1
+  
+  # infecting southeast         -------------------------------------------------------
+  cc_southeast <- sample(c(TRUE, FALSE), prob = c(prob, 1 - prob), 
+                   size = (nrow(X) - 1) * (ncol(X) - 1), replace = TRUE)
+  cc_southeast <- matrix(cc_southeast, nrow = nrow(X) - 1, ncol = ncol(X) - 1)
+  new_infection_southeast <- X[-nrow(X), -ncol(X)] == 1 & cc_southeast
+  Xsoutheast <- X
+  Xsoutheast[-1 , -1][new_infection_southeast] <- 1  
+  
+  # infecting northwest         -------------------------------------------------------
+  cc_northwest <- sample(c(TRUE, FALSE), prob = c(prob, 1 - prob), 
+                   size = (nrow(X) - 1) * (ncol(X) - 1), replace = TRUE)
+  cc_northwest <- matrix(cc_northwest, nrow = nrow(X) - 1, ncol = ncol(X) - 1)
+  new_infection_northwest <- X[-1, -1] == 1 & cc_northwest
+  Xnorthwest <- X
+  Xnorthwest[-nrow(X) , -ncol(X)][new_infection_northwest] <- 1  
+  
+  # infecting southwest         -------------------------------------------------------
+  cc_southwest <- sample(c(TRUE, FALSE), prob = c(prob, 1 - prob), 
+                   size = (nrow(X) - 1) * (ncol(X) - 1), replace = TRUE)
+  cc_southwest <- matrix(cc_southwest, nrow = nrow(X) - 1, ncol = ncol(X) - 1)
+  new_infection_southwest <- X[-nrow(X), -1] == 1 & cc_southwest
+  Xsouthwest <- X
+  Xsouthwest[-1 , -ncol(X)][new_infection_southwest] <- 1    
+  
+  
+  # combine all matrices (do at end)
+  newX <- Xbelow | Xabove | Xright | Xleft | Xnortheast | Xsoutheast | Xnorthwest | Xsouthwest
+  newX[X == 1] <- 2
+  newX
+}
+
+# inital infection
+initInfect <- randInfect(50, 50)
+# spreading the infection
+nextInfect <- infection(initInfect)
+
+# plotting
+plotInitMatrix(initInfect)
+box()
+plotMatrix(nextInfect, "After one time step")
+box()
+```

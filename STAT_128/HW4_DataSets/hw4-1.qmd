@@ -1,0 +1,235 @@
+---
+title: "hw4 stat128"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+
+# code to tidy data
+water <- read_delim("/Users/Jessica/Downloads/STAT_128/HW4_DataSets/water-temp.txt", comment="#", delim="\t") |>
+  slice(-1) |>
+  rename(water_temp = `15722_00010`) |>
+  mutate(water_temp = as.double(water_temp),
+         datetime = ymd_hm(datetime, tz = "US/Pacific"))
+```
+
+## 1 Warm Up
+
+#### 1. How many rows and columns are in the river temperature data?
+
+```{r}
+water
+```
+
+There are 6 columns and 137,727 rows of observations in the river temperature data.
+
+#### 2. What does an observation represent?
+
+```{r}
+slice(water, 1)
+
+range(water$datetime)
+```
+
+An observation represents the temperature of the water at the American River below Watt Avenue Bridge near Carmichael during each 15 minute increment throughout the day, everyday, from September 23rd, 2020 to September 23rd, 2024.
+
+#### 3. Clean up the data.
+
+Create a data frame called `water` containing three columns:
+
+1.  `datetime` that represents a moment in time
+2.  `temperature` that represents the water temperature in degrees Fahrenheit (not Celsius)
+3.  `qual` referring to the data qualification status from the USGS, as described in their [Tab-delimited output-format description](https://waterdata.usgs.gov/nwis/?tab_delimited_format_info):
+
+```         
+   # Data-value qualification codes included in this output: 
+   #     A  Approved for publication -- Processing and review completed.  
+   #     P  Provisional data subject to revision.  
+   #     e  Value has been estimated.  
+```
+
+*Hint: the row starting with `5s` is a problem.*
+
+```{r}
+water <- read_delim("/Users/Jessica/Downloads/STAT_128/HW4_DataSets/water-temp.txt", comment="#", delim="\t") |>
+  slice(-1) |>
+  rename(temperature = `15722_00010`, qual = `15722_00010_cd`) |>
+  select(datetime, temperature, qual) |>
+  mutate(temperature = as.double(temperature), 
+         datetime = ymd_hm(datetime, tz = "US/Pacific"))
+
+water
+```
+
+#### 4. What time span does the data cover? Is it complete?
+
+Explain how you determined if the data is complete or not.
+
+```{r}
+# time span the data covers
+range(water$datetime)
+
+# do we have all the days in between the start and end date?
+water |>
+  group_by(date = ymd(datetime)) |>
+  summarize()
+
+# do we have every time interval per day?
+water |>
+  group_by(days = yday(datetime)) |>
+  summarize(count = n())
+
+# completeness ratio
+stack(colMeans(!is.na(water))*100)
+
+```
+
+The time span includes recording the temperature during each 15 minute increment throughout the day, everyday, from September 23rd, 2020 to September 23rd, 2024.
+
+If the data keeps track of exactly 4 years of changing water temperature, then there should be at least 365 \* 4 (1460) days in the data, 1461 if we count the leap year. However, if we group by unique days, we see that there are only 1440 rows in this tibble, indicating that we are missing 20-21 days.
+
+Additionally, if the water temperature was recorded in 15 minute intervals, then each day should have 24 hours \* 60 minutes / 15 minutes \* 4 years (384) observations for each day of the year. In the second tibble, we see varying numbers of observations on each day–some less than and some greater than 384.
+
+Although the completeness ratio indicates that there are no missing values or NA's in the data set, the data is still not complete.
+
+## 2 Plots
+
+Answer each of the following questions with a plot and a brief explanation.
+
+#### 1. Plot a time series of the most recent day in the data.
+
+Is water temperature a discrete or continuous quantitative variable? Does the graph appear to show a discrete or continuous quantitative variable? Write a paragraph explaining what you see, and why.
+
+```{r}
+# plotting the most recent full day of data
+recent <- max(water$datetime)
+water |>
+  filter(date(datetime) == date(recent) - 1) |>
+  ggplot(aes(x = datetime, y = temperature)) +
+  geom_line()
+
+water |>
+  filter(date(datetime) == date(recent) - 1) |>
+  ggplot(aes(x = datetime, y = temperature)) +
+  geom_point() +
+  labs(x = "One Day", y = "Temperature in Celsius")
+```
+
+Water temperature is a continuous variable because its values can exist within a range. However, the graph steps as if it was plotting a discrete variable. When plotting the data as a line chart, it implies that the water temperature was recorded for every minute throughout the day, when that was not the case. It was only recorded in 15 minute intervals. Because of this, the dot plot is a better visualization of the data.
+
+#### 2. Plot a time series of the most recent week in data.
+
+Comment on the graph. Does there appear to be a recurring daily pattern?
+
+```{r}
+recentWeek <- week(recent)
+water |>
+  filter(week(datetime) == recentWeek - 1, year(datetime) == year(recent)) |>
+  ggplot(aes(x = datetime, y = temperature)) +
+  geom_point() +
+  labs(x ="One Week", y = "Temperature in Celsius")
+```
+
+Plotting the most recent week of water temperatures from the data set, we can see that there are daily fluctuations in the temperature. The temperature isn't exact for each pattern, as the water heats up overall the further we get into week. But we can see that the water cools down between 8:00 PM and 9:00 AM and heats up between 10:00 AM to 7:00 PM everyday. The water is the coolest at 9:00 AM and is the warmest at 6:00 PM and it seems that this is consistent throughout the week.
+
+#### 3. Plot the mean temperature each day for the entire data set.
+
+Add two annotations using `annotate` for the warmest and coldest days.
+
+```{r}
+# find the averages of the temperature per day
+mean <- water |>
+  group_by(date = date(datetime)) |>
+  summarize(avg_temp = mean(temperature)) 
+
+# isolate the warmest and coldest days
+range <- range(mean$avg_temp)
+warmCool <- subset(mean, avg_temp %in% range)
+
+# plot the average temps with annotations
+mean |>
+  ggplot(aes(x = date, y = avg_temp)) +
+  geom_point(alpha = 0.4) +
+  geom_point(data = warmCool |> slice_max(avg_temp), color = "red") +
+  geom_point(data = warmCool |> slice_min(avg_temp), color = "blue") +
+  annotate("text", x = ymd("2023-02-24"), y = 6.7, 
+           label = "Coldest Day", color = "blue", size = 2.5) +
+  annotate("text", x = ymd("2021-07-10"), y = 25.3, 
+           label = "Warmest Day", color = "red", size = 2.5)
+```
+
+#### 4. Is the water warmer or colder this past year versus previous years?
+
+Make sure you're comparing fairly. If the data goes until only September of this year, then account for this in your calculation.
+
+```{r}
+mean |>
+  ggplot(aes(x = date, y = avg_temp)) +
+  geom_point() +
+  labs(y = "Avg. Temp. in Celsius")
+```
+
+From January to September of this past year compared to previous years, the water temperature has been about what you would expect. It seems 2021 was an unusual year for the water, as they experienced significant highs in temperature around August and September. However for 2024, it seems on par with 2022-2023, excluding the fact that 2024 didn't experience a dip in water temperature in January-February, unlike 2022 and 2023.
+
+Because 2024 didn't experience this dip in temperature at the beginning of the year, the water started off warmer and increased from there until September.
+
+#### 5. During which months is the American River dangerously cold (less than 60 degrees Fahrenheit)?
+
+```{r}
+water |>
+  mutate(temperature_f = (temperature * 9)/5 + 32) |>
+  group_by(date = date(datetime)) |>
+  summarize(avg_temp = mean(temperature_f)) |>
+  ggplot(aes(x = date, y = avg_temp)) +
+  geom_point() +
+  geom_hline(yintercept = 60, color = "blue", size = 1) +
+  labs(y = "Avg. Temp. in Fahrenheit")
+
+water |>
+  mutate(temperature_f = (temperature * 9)/5 + 32) |>
+  filter(temperature_f < 60) |> 
+  group_by(month(datetime)) |>
+  summarize()
+```
+
+It seems that every month, besides September, had at least one day where the temperature of the water dipped below 60 degrees Fahrenheit over the last four years.
+
+#### 6. Come up with your own question and plot for this data.
+
+What months experienced the warmest water temperatures in 2021? What are possible reasons that these data points break the typical pattern expected?
+
+```{r}
+# finding the highest temperature in each year
+water |>
+  group_by(year(datetime)) |>
+  summarize(max(temperature))
+
+# finding the months in 2021 that have a higher temperature than the 
+# warmest day in 2023 (the year with the lowest high temperature)
+water |>
+  filter(year(datetime) == 2021, temperature > 20.9) |>
+  group_by(month(datetime)) |>
+  summarize()
+
+# plotting the warmest days in 2021
+water |>
+  filter(year(datetime) == 2021, temperature > 20.9) |>
+  group_by(date = ymd(datetime)) |>
+  summarize(avg_temp_cel = mean(temperature)) |>
+  ggplot(aes(x = date, y = avg_temp_cel)) +
+  geom_point() +
+  geom_smooth()
+```
+
+In the first table, we see the temperatures of the warmest days of each year recorded by the data. I used 2023's temperature as the basis to find the days with unusually high temperatures in 2021. In the second table, we see the months in 2021 that experienced those unusually high temperatures, spanning from the end of May all the way until October. The final plot shows the average temperature (in Celsius) per day during those months aforementioned in 2021.
+
+In this plot, we see that the among the warmest days, the temperature peaked at 25.8 degrees Celsius sometime in the beginning of July. July, beginning of August, and the beginning of September experienced very high temperatures with most data points being above 23 degrees Celsius.
+
+According to the U.S. Department of Agriculture, they reported that during the summer of 2021, the Northwest (which includes northern California) sustained record-breaking temperatures during a heat wave, especially during June and July. This is most likely the explanation behind the unusually high temperatures that 2021 experienced compared to the other years recorded in the data.
+
+Source: <https://www.climatehubs.usda.gov/hubs/northwest/topic/2021-northwest-heat-dome-causes-impacts-and-future-outlook#:~:text=The%20heat%20wave%20affected%20Oregon,most%20extreme%20events%20recorded%20globally.>

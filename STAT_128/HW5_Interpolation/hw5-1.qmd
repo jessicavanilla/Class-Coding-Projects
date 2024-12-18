@@ -1,0 +1,114 @@
+---
+title: "hw5"
+author: "Jessica Villanueva"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+w <- readRDS("/Users/Jessica/Downloads/STAT_128/HW5_Interpolation/sep2023.rds")
+```
+
+#### 1. Which data points are missing?
+
+Hint: The data is missing in more than 1 place.
+
+```{r}
+# range of entire data set
+range(w$time)
+
+# finding the days that have missing data
+w |>
+  group_by(day(time)) |>
+  summarize(n())
+
+# finding the times that are missing
+allTimes <- seq(from = min(w$time), to = max(w$time), by = "15 min")
+missingTimes <- as.POSIXct(setdiff(allTimes, w$time), tz = "UTC")
+
+# range of missing data points
+range(missingTimes)
+
+# sanity check
+table <- tibble(missingTimes)
+table |>
+  group_by(day(missingTimes)) |>
+  summarize(n())
+
+missing <- tibble(time = missingTimes)
+```
+
+The tibble displays the days that are missing data, namely the 19th through to the 21st. The Missing Times vector shows the specific times that aren't listed in the main data set. By taking the range of that vector, we can see that the data points are missing between 15:30 PM on September 19, 2023 to 11 AM on September 21, 2023.
+
+#### 2. Estimate the missing data, and provide a complete mathematical description of the fitted model you used.
+
+```{r}
+w2 <- filter(w, day(time) > 17 & day(time) < 22)
+mul <- 2*pi/24
+
+model <- lm(temperature ~ sin(mul * (hour(time) + minute(time)/60)), w2)
+w2_pred <- bind_rows(w2, missing)
+w2_pred$temperature <- predict(model, w2_pred)
+
+coef(model)
+
+```
+
+$$
+y = \beta_0 + \beta_1 \sin(p * (h + m/60))
+$$
+
+In this equation, $y$ is the temperature in Fahrenheit and is also the variable that we're estimating. The variables $h$ and $m$ are being used to represent the hour, where $m$ is the fraction of the hour and represents minutes. The variable $p$ is being used to alter the wavelength of the sine wave to represent a 24 hour period, where $p = \frac{2\pi}{24}$. With the fitted values, the equation becomes:
+
+$$
+y = 66.18 + -2.40\sin(p * (h+m/60))
+$$
+
+#### 3. Plot the data, the estimates, and the fitted model.
+
+Make it visually clear in the plot which are actual data points and which are estimates.
+
+```{r}
+missing$status <- "estimated"
+w2$status <- "observed"
+model <- lm(temperature ~ sin(mul * (hour(time) + minute(time)/60)), w2)
+missing$temperature <- predict(model, missing)
+w2 <- bind_rows(w2, missing)
+
+ggplot(w2, aes(x = time, y = temperature)) +
+  geom_point(aes(color = status)) +
+  theme_minimal() +
+  geom_line(data = w2_pred)
+```
+
+The first plot shows a sinusoidal estimation of what the temperature of the water could have been in the missing time slots. We can see here that the blue sine wave represents the most ideal water conditions, but reality doesn't mimic that. So before and after the missing time period, we can see the true values deviate from the fitted model a bit.
+
+In the second plot, purely the data points are shown, both the estimated and observed values. Here, the estimated values don't fully imitate the behavior of the observed values, as the spacing between the data points are not the same. But this plot shows what the plot could have looked like if the data was not missing in the first place.
+
+#### 4. How well did the estimates work?
+
+Download the [complete data](https://waterdata.usgs.gov/monitoring-location/11446980/#parameterCode=00010&period=P7D&showMedian=true) from USGS or from the previous homework, and compare the estimates with the actual data points.
+
+```{r}
+water <- read_delim("/Users/Jessica/Downloads/STAT_128/HW4_DataSets/water-temp.txt", 
+                    comment="#", delim="\t") |>
+  slice(-1) |>
+  filter(day(datetime) > 17 & day(datetime) < 22 & 
+           year(datetime) == 2023 & month(datetime) == 9) |>
+  rename(temperature = `15722_00010`, qual = `15722_00010_cd`) |>
+  select(datetime, temperature, qual) |>
+  mutate(temperature = as.double(temperature), 
+         datetime = ymd_hm(datetime, tz = "US/Pacific"),
+         temperature_f = (temperature * 9)/5 + 32)
+
+
+ggplot(water, aes(x = datetime, y = temperature_f)) +
+  geom_point(color = "red") +
+  geom_line(data = w2_pred, aes(x = time, y = temperature), color = "blue") +
+  labs(subtitle = "Model predictions in blue")
+```
+
+I'm not entirely sure why the complete data is shifted compared to the data given in this homework. I checked the tibbles for each data frame and they start at the same date (and have the same number of observations) so I'm not sure why they're started and ending on different x-values in the plot. But if we imagine that they are in the right place, we can see that the fitted model did a reasonable job predicting the actual values of the data set. It's not exact because the model predicts the temperature will be the same every day at the same time. But, reality often deviates from what is expected in an experiment.
